@@ -1,0 +1,38 @@
+name: Docker push
+# This builds the docker image and pushes it to DockerHub
+on:
+  push:
+    branches:
+      - dev
+  release:
+    types: [published]
+
+jobs:
+  push_dockerhub:
+    name: Push new Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'peterk87/docker-tvc-tmap-torrent-suite' }}
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_PASS: ${{ secrets.DOCKERHUB_PASS }}
+    steps:
+      - name: Check out pipeline code
+        uses: actions/checkout@v2
+
+      - name: Build new docker image
+        run: docker build --no-cache . -t peterk87/docker-tvc-tmap-torrent-suite:latest
+
+      - name: Push Docker image to DockerHub (dev)
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          docker tag peterk87/tvc-tmap-torrent-suite:latest peterk87/tvc-tmap-torrent-suite:dev
+          docker push peterk87/tvc-tmap-torrent-suite:dev
+
+      - name: Push Docker image to DockerHub (release)
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          docker push peterk87/tvc-tmap-torrent-suite:latest
+          docker tag peterk87/tvc-tmap-torrent-suite:latest peterk87/tvc-tmap-torrent-suite:${{ github.event.release.tag_name }}
+          docker push peterk87/tvc-tmap-torrent-suite:${{ github.event.release.tag_name }}
